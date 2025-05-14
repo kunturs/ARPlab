@@ -14,6 +14,7 @@ library(stringr)
 library(readr)
 library(viridis)
 library(ggrepel)
+library(patchwork)
 
 # -------------------------------
 # 📥 Load and Prepare the Dataset
@@ -74,18 +75,18 @@ latest_labels <- top_words %>%
 # -------------------------------
 # 📈 Visualization
 # -------------------------------
-
-ggplot(top_words, aes(x = date, y = tf_idf, color = word, group = word)) +
+# 🧪 p1: TF-IDF Line Plot
+p1 <- ggplot(top_words, aes(x = date, y = tf_idf, color = word, group = word)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2) +
   geom_text_repel(
     data = latest_labels, aes(label = word),
     size = 3, show.legend = FALSE, max.overlaps = 10
   ) +
-  scale_color_viridis_d(option = "plasma") +
+  scale_color_viridis_d(option = "rocket") +
   labs(
-    title = "Top Keywords by TF-IDF Over Time",
-    subtitle = "Across all merged BBC News CSV files",
+    title = "tf-idf",
+    subtitle = "across BBC/news",
     x = "Date",
     y = "TF-IDF Score",
     color = "Keyword"
@@ -96,3 +97,41 @@ ggplot(top_words, aes(x = date, y = tf_idf, color = word, group = word)) +
     legend.position = "none"
   )
 
+# 🧪 p2: Word Frequency Bar Chart (Top 10)
+p2 <- tokens %>%
+  count(word, sort = TRUE) %>%
+  slice_max(n, n = 10) %>%
+  ggplot(aes(x = reorder(word, n), y = n)) +
+  geom_col(fill = "#a9373bff") +
+  coord_flip() +
+  labs(
+    title = "top words",
+    x = "Word",
+    y = "Frequency"
+  ) +
+  theme_minimal(base_size = 13)
+
+## Trump
+
+word_trend <- tokens %>%
+  filter(word == "trump") %>%
+  count(date)
+
+# Plot the trend
+p3 <- ggplot(word_trend, aes(x = date, y = n)) +
+  geom_line(color = "#2369bdff", linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "'trump' daily freq",
+    x = "Date",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+#Combine plots using patchwork
+# -------------------------------
+
+(p1 + p2 / p3) + plot_layout(guides = "collect")
