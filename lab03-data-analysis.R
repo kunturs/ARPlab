@@ -1,7 +1,11 @@
-# Set working directory
+# -------------------------------
+# BBC News Text Analysis with TF-IDF
+# -------------------------------
+
+# 📁 Set working directory
 setwd("~/Downloads/ARPlab")
 
-# Load required libraries
+# 📦 Load required libraries
 library(dplyr)
 library(tidytext)
 library(ggplot2)
@@ -11,6 +15,10 @@ library(readr)
 library(viridis)
 library(ggrepel)
 
+# -------------------------------
+# 📥 Load and Prepare the Dataset
+# -------------------------------
+
 # Get all CSV files in the folder
 csv_files <- list.files(pattern = "\\.csv$")
 
@@ -19,15 +27,21 @@ news_data <- csv_files %>%
   lapply(read_csv) %>%
   bind_rows()
 
-# Clean the dataset: remove missing or empty headlines and text
+# Clean the dataset: remove rows with empty or missing headlines and text
 df_clean <- news_data %>%
-  filter(!is.na(headline), headline != "",
-         !is.na(text), text != "")
+  filter(
+    !is.na(headline), headline != "",
+    !is.na(text), text != ""
+  )
 
 # Convert timestamp to Date format
 df_clean$date <- as.Date(df_clean$timestamp)
 
-# Tokenize words from the text column
+# -------------------------------
+# 🧠 Text Preprocessing
+# -------------------------------
+
+# Tokenize text and remove stopwords
 tokens <- df_clean %>%
   unnest_tokens(word, text) %>%
   filter(str_detect(word, "[a-z]")) %>%
@@ -37,28 +51,37 @@ tokens <- df_clean %>%
 word_counts <- tokens %>%
   count(date, word, sort = TRUE)
 
-# Compute TF-IDF
+# -------------------------------
+# 📊 TF-IDF Analysis
+# -------------------------------
+
+# Calculate TF-IDF scores
 tfidf <- word_counts %>%
   bind_tf_idf(term = word, document = date, n = n)
 
-# Get top 5 words by TF-IDF for each day
+# Get top 5 TF-IDF words per date
 top_words <- tfidf %>%
   group_by(date) %>%
   slice_max(tf_idf, n = 5, with_ties = FALSE) %>%
   ungroup()
 
-# Prepare labels only for most recent date per word
+# Identify the latest date per word for labeling
 latest_labels <- top_words %>%
   group_by(word) %>%
   filter(date == max(date)) %>%
   ungroup()
 
-# Plot keyword importance over time
+# -------------------------------
+# 📈 Visualization
+# -------------------------------
+
 ggplot(top_words, aes(x = date, y = tf_idf, color = word, group = word)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2) +
-  geom_text_repel(data = latest_labels, aes(label = word),
-                  size = 3, show.legend = FALSE, max.overlaps = 10) +
+  geom_text_repel(
+    data = latest_labels, aes(label = word),
+    size = 3, show.legend = FALSE, max.overlaps = 10
+  ) +
   scale_color_viridis_d(option = "plasma") +
   labs(
     title = "Top Keywords by TF-IDF Over Time",
